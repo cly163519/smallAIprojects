@@ -23,6 +23,7 @@ namespace NotHumanToday.Animated
         private Scene _current = Scene.Cloud;
         private Canvas? Root;
         private Canvas? CloudLayer;
+        private bool _layoutGirlPending;
 
         // Fix: Proper initialization
         private ScaleTransform GirlScale { get; set; } = new(1, 1);
@@ -53,6 +54,17 @@ namespace NotHumanToday.Animated
             transformGroup.Children.Add(GirlScale);
             transformGroup.Children.Add(translate);
             Girl.RenderTransform = transformGroup;
+            
+            if (Girl is FrameworkElement girlElement)
+            {
+                girlElement.SizeChanged += (_, __) => LayoutGirl();
+
+                // Ensure we also center once the image pixels become available.
+                if (girlElement is Image girlImage)
+                {
+                    girlImage.ImageOpened += (_, __) => LayoutGirl();
+                }
+            }
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
@@ -276,8 +288,66 @@ namespace NotHumanToday.Animated
         private void LayoutGirl()
         {
             if (Girl == null || Root == null) return;
-            Canvas.SetLeft(Girl, (Root.ActualWidth - Girl.RenderSize.Width) / 2);
-            Canvas.SetTop(Girl, (Root.ActualHeight - Girl.RenderSize.Height) / 2);
+            if (Girl is not FrameworkElement girlElement) return;
+
+            if (!TryGetSize(Root, out var rootWidth, out var rootHeight))
+            {
+                ScheduleLayoutGirl();
+                return;
+            }
+
+            if (!TryGetSize(girlElement, out var width, out var height))
+            {
+                ScheduleLayoutGirl();
+                return;
+            }
+
+            Canvas.SetLeft(girlElement, (rootWidth - width) / 2);
+            Canvas.SetTop(girlElement, (rootHeight - height) / 2);
+        }
+
+        private bool TryGetSize(FrameworkElement element, out double width, out double height)
+        {
+            width = element.ActualWidth;
+            height = element.ActualHeight;
+
+            if (IsValidSize(width) && IsValidSize(height) && width > 0 && height > 0)
+            {
+                return true;
+            }
+
+            var renderSize = element.RenderSize;
+            width = renderSize.Width;
+            height = renderSize.Height;
+
+            if (IsValidSize(width) && IsValidSize(height) && width > 0 && height > 0)
+            {
+                return true;
+            }
+
+            element.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            var desired = element.DesiredSize;
+            width = desired.Width;
+            height = desired.Height;
+
+            return IsValidSize(width) && IsValidSize(height) && width > 0 && height > 0;
+        }
+
+        private static bool IsValidSize(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
+
+        private void ScheduleLayoutGirl()
+        {
+            if (_layoutGirlPending)
+            {
+                return;
+            }
+
+            _layoutGirlPending = true;
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+            {
+                _layoutGirlPending = false;
+                LayoutGirl();
+            }));
         }
 
         private void ShowCaption(bool show)
