@@ -1,0 +1,19 @@
+<Window x:Class="NotHumanToday.Animated.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Not Human Today" Height="450" Width="800">
+    <Canvas x:Name="Root">
+        <Canvas x:Name="CloudLayer"/>
+        <Image x:Name="Girl" Source="/Assets/girl.png"/>
+        <TextBlock x:Name="Caption" 
+                   Canvas.Left="20" Canvas.Bottom="20"
+                   FontSize="24" Foreground="White"/>
+        <StackPanel Orientation="Horizontal" 
+                    Canvas.Right="20" Canvas.Top="20">
+            <Button Content="☁" Click="BtnCloud_OnClick"/>
+            <Button Content="☔" Click="BtnRain_OnClick"/>
+            <Button Content="🌪" Click="BtnWind_OnClick"/>
+            <Button Content="▶" Click="BtnPlay_OnClick"/>
+        </StackPanel>
+    </Canvas>
+</Window>
