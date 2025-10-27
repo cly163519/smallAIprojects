@@ -1,0 +1,10 @@
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\MainWindow.baml
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\MainWindow.g.cs
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\App.g.cs
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated_MarkupCompile.cache
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated.g.resources
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated.GeneratedMSBuildEditorConfig.editorconfig
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated.AssemblyInfoInputs.cache
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated.AssemblyInfo.cs
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated.csproj.CoreCompileInputs.cache
+D:\AIProjects\NotHumanToday.Animated\obj\Debug\net6.0-windows\NotHumanToday.Animated.sourcelink.json

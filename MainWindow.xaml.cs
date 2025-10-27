@@ -9,9 +9,15 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 
-
 namespace NotHumanToday.Animated
 {
+    public enum Scene
+    {
+        Cloud,
+        Rain,
+        Wind
+    }
+
     public partial class MainWindow : Window
     {
         private readonly Random _rnd = new();
@@ -21,15 +27,18 @@ namespace NotHumanToday.Animated
         private DispatcherTimer? _rainTimer;
         private DispatcherTimer? _windTimer;
         private Scene _current = Scene.Cloud;
-        private Canvas? Root;
-        private Canvas? CloudLayer;
-        private bool _layoutGirlPending;
+        private bool _layoutGirlPending; // Add this field for layout state
 
-        // Fix: Proper initialization
-        private ScaleTransform GirlScale { get; set; } = new(1, 1);
-        private UIElement? Girl { get; set; }
+        // Remove duplicate field declarations since they're defined in XAML
+        // These will be available through the partial class generated from XAML
+        // private Canvas Root;
+        // private Canvas CloudLayer;
+        // private Image Girl;
+        // private ScaleTransform GirlScale;
 
-        private static readonly DependencyProperty OpacityProperty = UIElement.OpacityProperty;
+        // Fix opacity property warning
+        new public static readonly DependencyProperty OpacityProperty = 
+            UIElement.OpacityProperty;
 
         public MainWindow()
         {
@@ -37,252 +46,19 @@ namespace NotHumanToday.Animated
             ValidateXamlStructure();
             
             SizeChanged += (_, __) => LayoutGirl();
-            Loaded += OnLoaded;
+            Loaded += (_, __) => 
+            {
+                InitClouds();
+                EnterScene(Scene.Cloud, withIntro: true);
+            };
             Closed += OnClosed;
         }
 
         private void ValidateXamlStructure()
         {
-            Root = (Canvas)FindName("Root") ?? throw new InvalidOperationException("Root canvas not found");
-            CloudLayer = (Canvas)FindName("CloudLayer") ?? throw new InvalidOperationException("CloudLayer not found");
-            Girl = (UIElement)FindName("Girl") ?? throw new InvalidOperationException("Girl element not found");
-            
-            // Initialize GirlScale and transforms before using them
-            var transformGroup = new TransformGroup();
-            GirlScale = new ScaleTransform(1, 1);
-            var translate = new TranslateTransform();
-            transformGroup.Children.Add(GirlScale);
-            transformGroup.Children.Add(translate);
-            Girl.RenderTransform = transformGroup;
-            
-            if (Girl is FrameworkElement girlElement)
-            {
-                girlElement.SizeChanged += (_, __) => LayoutGirl();
-
-                // Ensure we also center once the image pixels become available.
-                if (girlElement is Image girlImage)
-                {
-                    girlImage.ImageOpened += (_, __) => LayoutGirl();
-                }
-            }
-        }
-
-        private void OnLoaded(object sender, RoutedEventArgs e)
-        {
-            LayoutGirl();
-            InitClouds();
-            EnterScene(Scene.Cloud, withIntro: true);
-        }
-
-        private void OnClosed(object sender, EventArgs e)
-        {
-            CompositionTarget.Rendering -= MoveClouds;
-            _rainTimer?.Stop();
-            _windTimer?.Stop();
-            _rainTimer = null;
-            _windTimer = null;
-        }
-
-        private void InitClouds()
-        {
-            if (CloudLayer == null || Root == null) return;
-            
-            CloudLayer.Children.Clear();
-            _clouds.Clear();
-
-            // Create initial clouds with safe width calculation
-            var safeWidth = Math.Max(1, (int)Root.ActualWidth);
-            for (int i = 0; i < 6; i++)
-            {
-                var cloud = MakeCloud();
-                _clouds.Add(cloud);
-                CloudLayer.Children.Add(cloud);
-                Canvas.SetLeft(cloud, _rnd.Next(0, safeWidth));
-                Canvas.SetTop(cloud, _rnd.Next(20, 100));
-            }
-
-            CompositionTarget.Rendering -= MoveClouds;
-            CompositionTarget.Rendering += MoveClouds;
-        }
-
-        private void MoveClouds(object? sender, EventArgs e)
-        {
-            if (Root == null || Root.ActualWidth <= 0) return;
-
-            foreach (var cloud in _clouds.ToList())
-            {
-                if (cloud == null) continue;
-                
-                double x = Canvas.GetLeft(cloud);
-                x -= 0.2;
-                
-                if (x + cloud.ActualWidth < -100)
-                    x = Root.ActualWidth;
-                    
-                Canvas.SetLeft(cloud, x);
-            }
-        }
-
-        private void EnterScene(Scene target, bool withIntro = false)
-        {
-            if (_current == target && !withIntro) return;
-            
-            // Stop current animations and effects first
-            StopAllAnimations();
-            StopAllEffects();
-            
-            // Then change scene and start new effects
-            _current = target;
-            switch (target)
-            {
-                case Scene.Cloud:
-                    SkyToBluePink();
-                    break;
-                case Scene.Rain:
-                    SkyToRainMuted();
-                    StartRain();
-                    break;
-                case Scene.Wind:
-                    SkyToWindDawn();
-                    StartWind();
-                    break;
-            }
-
-            StartGirlAnimations(withIntro);
-            ShowCaption(true);
-        }
-
-        private void StopAllAnimations()
-        {
-            if (Girl == null) return;
-            
-            Girl.BeginAnimation(OpacityProperty, null);
-            var tt = EnsureGirlTranslate();
-            tt?.BeginAnimation(TranslateTransform.YProperty, null);
-            GirlScale?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        }
-
-        private void StopAllEffects()
-        {
-            StopRain();
-            StopWind();
-        }
-
-        private void StartGirlAnimations(bool withIntro)
-        {
-            if (Girl == null || GirlScale == null) return;
-
-            var tt = EnsureGirlTranslate();
-            if (tt == null) return;
-
-            // Clear any existing animations first
-            tt.BeginAnimation(TranslateTransform.YProperty, null);
-            Girl.BeginAnimation(OpacityProperty, null);
-            GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-
-            // Then start new animations
-            var yAnim = new DoubleAnimationUsingKeyFrames 
-            { 
-                RepeatBehavior = RepeatBehavior.Forever,
-                AutoReverse = true 
-            };
-            yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(-8, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3))));
-            
-            tt.BeginAnimation(TranslateTransform.YProperty, yAnim);
-            
-            if (withIntro)
-            {
-                Girl.Opacity = 0;
-                GirlScale.ScaleY = 1.2;
-                Girl.BeginAnimation(OpacityProperty, DA(1, 1.5));
-                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1, 1.5));
-            }
-            else
-            {
-                Girl.BeginAnimation(OpacityProperty, DA(0.95, 0.8));
-                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1.0, 0.1));
-            }
-        }
-
-        #region Buttons
-        private void BtnCloud_OnClick(object sender, RoutedEventArgs e) => EnterScene(Scene.Cloud);
-        private void BtnRain_OnClick(object sender, RoutedEventArgs e) => EnterScene(Scene.Rain);
-        private void BtnWind_OnClick(object sender, RoutedEventArgs e) => EnterScene(Scene.Wind);
-
-        private void BtnPlay_OnClick(object sender, RoutedEventArgs e)
-        {
-            // 自动播放：Cloud -> Rain -> Wind -> Cloud...
-            var seq = new[] { Scene.Cloud, Scene.Rain, Scene.Wind };
-            int idx = Array.IndexOf(seq, _current);
-            idx = (idx + 1) % seq.Length;
-            EnterScene(seq[idx]);
-        }
-        #endregion
-
-        private void StartRain()
-        {
-            if (_rainTimer == null)
-            {
-                _rainTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Render,
-                    (s, e) => AddRainDrop(), Dispatcher);
-            }
-            _rainTimer.Start();
-        }
-
-        private void StopRain()
-        {
-            _rainTimer?.Stop();
-            _rain.Clear();
-            if (Root != null)
-            {
-                foreach (var drop in Root.Children.OfType<Line>().ToList())
-                {
-                    Root.Children.Remove(drop);
-                }
-            }
-        }
-
-        private void AddRainDrop()
-        {
-            if (Root == null) return;
-
-            var drop = new Line
-            {
-                Stroke = new SolidColorBrush(Colors.LightBlue) { Opacity = 0.4 },
-                X1 = _rnd.Next(0, (int)Root.ActualWidth),
-                Y1 = -10,
-                StrokeThickness = 1
-            };
-            drop.X2 = drop.X1 - 3;
-            drop.Y2 = drop.Y1 + 10;
-
-            Root.Children.Add(drop);
-            _rain.Add(drop);
-
-            var anim = new DoubleAnimation
-            {
-                From = -10,
-                To = Root.ActualHeight + 10,
-                Duration = TimeSpan.FromSeconds(0.5)
-            };
-            anim.Completed += (s, e) =>
-            {
-                Root.Children.Remove(drop);
-                _rain.Remove(drop);
-            };
-
-            drop.BeginAnimation(Canvas.TopProperty, anim);
-        }
-
-        private Ellipse MakeCloud()
-        {
-            return new Ellipse
-            {
-                Width = _rnd.Next(60, 120),
-                Height = _rnd.Next(30, 60),
-                Fill = new SolidColorBrush(Colors.White) { Opacity = 0.8 }
-            };
+            // Initialize transform group with named transforms from XAML
+            GirlScale = (ScaleTransform)FindName("GirlScale") ?? throw new InvalidOperationException("GirlScale not found");
+            var girlTranslate = (TranslateTransform)FindName("GirlTranslate") ?? throw new InvalidOperationException("GirlTranslate not found");
         }
 
         private void LayoutGirl()
@@ -498,13 +274,204 @@ namespace NotHumanToday.Animated
             }
             return translate;
         }
-    }
 
-    // Add missing enum
-    public enum Scene
-    {
-        Cloud,
-        Rain,
-        Wind
+        private void BtnCloud_OnClick(object sender, RoutedEventArgs e)
+        {
+            EnterScene(Scene.Cloud);
+        }
+
+        private void BtnRain_OnClick(object sender, RoutedEventArgs e)
+        {
+            EnterScene(Scene.Rain);
+        }
+
+        private void BtnWind_OnClick(object sender, RoutedEventArgs e)
+        {
+            EnterScene(Scene.Wind);
+        }
+
+        private void InitClouds()
+        {
+            if (CloudLayer == null || Root == null) return;
+            
+            CloudLayer.Children.Clear();
+            _clouds.Clear();
+
+            for (int i = 0; i < 6; i++)
+            {
+                var cloud = MakeCloud();
+                _clouds.Add(cloud);
+                CloudLayer.Children.Add(cloud);
+                Canvas.SetLeft(cloud, _rnd.Next(0, (int)Root.ActualWidth));
+                Canvas.SetTop(cloud, _rnd.Next(20, 100));
+            }
+
+            CompositionTarget.Rendering -= MoveClouds;
+            CompositionTarget.Rendering += MoveClouds;
+        }
+
+        private Ellipse MakeCloud()
+        {
+            return new Ellipse
+            {
+                Width = _rnd.Next(60, 120),
+                Height = _rnd.Next(30, 60),
+                Fill = new SolidColorBrush(Colors.White) { Opacity = 0.8 }
+            };
+        }
+
+        private void MoveClouds(object? sender, EventArgs e)
+        {
+            if (Root == null || Root.ActualWidth <= 0) return;
+
+            foreach (var cloud in _clouds.ToList())
+            {
+                if (cloud == null) continue;
+                
+                double x = Canvas.GetLeft(cloud);
+                x -= 0.2;
+                
+                if (x + cloud.ActualWidth < -100)
+                    x = Root.ActualWidth;
+                    
+                Canvas.SetLeft(cloud, x);
+            }
+        }
+
+        private void EnterScene(Scene target, bool withIntro = false)
+        {
+            if (_current == target && !withIntro) return;
+            _current = target;
+
+            // Stop current animations
+            StopAllAnimations();
+
+            // Scene transitions
+            switch (target)
+            {
+                case Scene.Cloud:
+                    SkyToBluePink();
+                    StopRain();
+                    StopWind();
+                    break;
+                case Scene.Rain:
+                    SkyToRainMuted();
+                    StartRain();
+                    StopWind();
+                    break;
+                case Scene.Wind:
+                    SkyToWindDawn();
+                    StopRain();
+                    StartWind();
+                    break;
+            }
+
+            StartGirlAnimations(withIntro);
+            ShowCaption(true);
+        }
+
+        private void StopAllAnimations()
+        {
+            if (Girl == null) return;
+            
+            Girl.BeginAnimation(OpacityProperty, null);
+            var tt = EnsureGirlTranslate();
+            tt?.BeginAnimation(TranslateTransform.YProperty, null);
+            GirlScale?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+        }
+
+        private void StartGirlAnimations(bool withIntro)
+        {
+            if (Girl == null) return;
+
+            var yAnim = new DoubleAnimationUsingKeyFrames 
+            { 
+                RepeatBehavior = RepeatBehavior.Forever,
+                AutoReverse = true 
+            };
+            yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(-8, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3))));
+            
+            var tt = EnsureGirlTranslate();
+            tt?.BeginAnimation(TranslateTransform.YProperty, yAnim);
+            
+            if (withIntro)
+            {
+                Girl.Opacity = 0;
+                GirlScale.ScaleY = 1.2;
+                Girl.BeginAnimation(OpacityProperty, DA(1, 1.5));
+                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1, 1.5));
+            }
+            else
+            {
+                Girl.BeginAnimation(OpacityProperty, DA(0.95, 0.8));
+                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1.0, 0.1));
+            }
+        }
+
+        private void OnClosed(object? sender, EventArgs e) // Fix nullability warning
+        {
+            CompositionTarget.Rendering -= MoveClouds;
+            StopAllAnimations();
+            StopRain();
+            StopWind();
+            _rainTimer?.Stop();
+            _windTimer?.Stop();
+        }
+
+        private void StartRain()
+        {
+            if (_rainTimer == null)
+            {
+                _rainTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Render,
+                    (s, e) => AddRainDrop(), Dispatcher);
+            }
+            _rainTimer.Start();
+        }
+
+        private void StopRain()
+        {
+            _rainTimer?.Stop();
+            _rain.Clear();
+            if (Root != null)
+            {
+                foreach (var drop in Root.Children.OfType<Line>().ToList())
+                {
+                    Root.Children.Remove(drop);
+                }
+            }
+        }
+
+        private void AddRainDrop()
+        {
+            if (Root == null) return;
+
+            var drop = new Line
+            {
+                Stroke = new SolidColorBrush(Colors.LightBlue) { Opacity = 0.4 },
+                X1 = _rnd.Next(0, (int)Root.ActualWidth),
+                Y1 = -10,
+                StrokeThickness = 1
+            };
+            drop.X2 = drop.X1 - 3;
+            drop.Y2 = drop.Y1 + 10;
+
+            Root.Children.Add(drop);
+            _rain.Add(drop);
+
+            var anim = new DoubleAnimation
+            {
+                From = -10,
+                To = Root.ActualHeight + 10,
+                Duration = TimeSpan.FromSeconds(0.5)
+            };
+            anim.Completed += (s, e) =>
+            {
+                Root.Children.Remove(drop);
+                _rain.Remove(drop);
+            };
+
+            drop.BeginAnimation(Canvas.TopProperty, anim);
+        }
     }
 }
