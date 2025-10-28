@@ -22,12 +22,18 @@ namespace NotHumanToday.Animated
     {
         private readonly Random _rnd = new();
         private readonly List<Ellipse> _clouds = new();
+        private readonly List<(Ellipse Cloud, double Speed)> _cloudMeta = new();
         private readonly List<Line> _rain = new();
         private readonly List<Path> _windStrokes = new();
         private DispatcherTimer? _rainTimer;
         private DispatcherTimer? _windTimer;
         private Scene _current = Scene.Cloud;
         private bool _layoutGirlPending; // Add this field for layout state
+
+        private readonly MediaPlayer _musicPlayer = new();
+        private Effect? _originalGirlEffect;
+        private bool _experienceStarted;
+        private const int WindStrokeTarget = 120;
 
         // Remove duplicate field declarations since they're defined in XAML
         // These will be available through the partial class generated from XAML
@@ -37,7 +43,7 @@ namespace NotHumanToday.Animated
         // private ScaleTransform GirlScale;
 
         // Fix opacity property warning
-        new public static readonly DependencyProperty OpacityProperty = 
+        new public static readonly DependencyProperty OpacityProperty =
             UIElement.OpacityProperty;
 
         public MainWindow()
@@ -46,10 +52,10 @@ namespace NotHumanToday.Animated
             ValidateXamlStructure();
             
             SizeChanged += (_, __) => LayoutGirl();
-            Loaded += (_, __) => 
+            Loaded += (_, __) =>
             {
-                InitClouds();
-                EnterScene(Scene.Cloud, withIntro: true);
+                LayoutGirl();
+                PreparePreview();
             };
             Closed += OnClosed;
         }
@@ -58,8 +64,49 @@ namespace NotHumanToday.Animated
         {
             // Initialize transform group with named transforms from XAML
             GirlScale = (ScaleTransform)FindName("GirlScale") ?? throw new InvalidOperationException("GirlScale not found");
-            var girlTranslate = (TranslateTransform)FindName("GirlTranslate") ?? throw new InvalidOperationException("GirlTranslate not found");
+             _ = (TranslateTransform)FindName("GirlTranslate") ?? throw new InvalidOperationException("GirlTranslate not found");
+            _originalGirlEffect = Girl?.Effect;
+            SetButtonsEnabled(false);
+            _musicPlayer.Volume = 0.6;
+            _musicPlayer.MediaEnded += (_, __) =>
+            {
+                _musicPlayer.Position = TimeSpan.Zero;
+                _musicPlayer.Play();
+            };
+            var musicUri = new Uri("pack://application:,,,/Assets/ambient.wav", UriKind.Absolute);
+            _musicPlayer.Open(musicUri);
         }
+
+        private void PreparePreview()
+        {
+            if (Root != null)
+            {
+                var sky = new LinearGradientBrush
+                {
+                    StartPoint = new Point(0.5, 0),
+                    EndPoint = new Point(0.5, 1)
+                };
+                sky.GradientStops.Add(new GradientStop(Color.FromRgb(32, 41, 72), 0));
+                sky.GradientStops.Add(new GradientStop(Color.FromRgb(14, 21, 32), 1));
+                Root.Background = sky;
+            }
+
+            if (Caption != null)
+            {
+                Caption.Visibility = Visibility.Collapsed;
+            }
+
+            if (Girl != null)
+            {
+                Girl.Opacity = 0.85;
+            }
+        }
+
+        private void SetButtonsEnabled(bool enabled)
+        {
+            if (BtnCloud != null) BtnCloud.IsEnabled = enabled;
+            if (BtnRain != null) BtnRain.IsEnabled = enabled;
+            if (BtnWind != null) BtnWind.IsEnabled = enabled;
 
         private void LayoutGirl()
         {
@@ -136,13 +183,13 @@ namespace NotHumanToday.Animated
             switch (_current)
             {
                 case Scene.Cloud:
-                    caption.Text = "Cloudy Day";
+                    caption.Text = "☁ Drifting Free · Cloud";
                     break;
                 case Scene.Rain:
-                    caption.Text = "Rainy Day";
+                    caption.Text = "🌧 Quiet Disappearance · Rain";
                     break;
                 case Scene.Wind:
-                    caption.Text = "Windy Day";
+                    caption.Text = "🌫 Fragile Freedom · Wind";
                     break;
             }
         }
@@ -156,15 +203,14 @@ namespace NotHumanToday.Animated
         {
             if (Root == null) return;
             
-            var sky = new RadialGradientBrush
+            var sky = new LinearGradientBrush
             {
-                Center = new Point(0.5, 0.5),
-                RadiusX = 0.5,
-                RadiusY = 0.5,
-                GradientOrigin = new Point(0.5, 0.5)
+                StartPoint = new Point(0.5, 0),
+                EndPoint = new Point(0.5, 1)
             };
-            sky.GradientStops.Add(new GradientStop(Color.FromRgb(255, 182, 193), 0));    // LightPink
-            sky.GradientStops.Add(new GradientStop(Color.FromRgb(173, 216, 230), 1));    // LightBlue
+            sky.GradientStops.Add(new GradientStop(Color.FromRgb(193, 226, 255), 0));
+            sky.GradientStops.Add(new GradientStop(Color.FromRgb(241, 214, 232), 0.6));
+            sky.GradientStops.Add(new GradientStop(Color.FromRgb(186, 213, 255), 1));
             Root.Background = sky;
         }
 
@@ -172,12 +218,10 @@ namespace NotHumanToday.Animated
         {
             if (Root == null) return;
             
-            var sky = new RadialGradientBrush
+            var sky = new LinearGradientBrush
             {
-                Center = new Point(0.5, 0.5),
-                RadiusX = 0.5,
-                RadiusY = 0.5,
-                GradientOrigin = new Point(0.5, 0.5)
+                StartPoint = new Point(0.5, 0),
+                EndPoint = new Point(0.5, 1)
             };
             sky.GradientStops.Add(new GradientStop(Color.FromRgb(128, 128, 128), 0));    // Gray
             sky.GradientStops.Add(new GradientStop(Color.FromRgb(169, 169, 169), 1));    // DarkGray
@@ -188,15 +232,14 @@ namespace NotHumanToday.Animated
         {
             if (Root == null) return;
             
-            var sky = new RadialGradientBrush
+            var sky = new LinearGradientBrush
             {
-                Center = new Point(0.5, 0.5),
-                RadiusX = 0.5,
-                RadiusY = 0.5,
-                GradientOrigin = new Point(0.5, 0.5)
+                StartPoint = new Point(0, 0.5),
+                EndPoint = new Point(1, 0.5)
             };
-            sky.GradientStops.Add(new GradientStop(Color.FromRgb(255, 165, 0), 0));      // Orange
-            sky.GradientStops.Add(new GradientStop(Color.FromRgb(255, 140, 0), 1));      // DarkOrange
+            sky.GradientStops.Add(new GradientStop(Color.FromRgb(189, 216, 255), 0));
+            sky.GradientStops.Add(new GradientStop(Color.FromRgb(255, 200, 214), 0.5));
+            sky.GradientStops.Add(new GradientStop(Color.FromRgb(255, 168, 185), 1));
             Root.Background = sky;
         }
 
@@ -204,8 +247,8 @@ namespace NotHumanToday.Animated
         {
             if (_windTimer == null)
             {
-                _windTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(50), DispatcherPriority.Render,
-                    (s, e) => AddWindStroke(), Dispatcher);
+                _windTimer = new DispatcherTimer(TimeSpan.FromMilliseconds(60), DispatcherPriority.Render,
+                    (_, _) => AddWindStroke(), Dispatcher);
             }
             _windTimer.Start();
         }
@@ -226,22 +269,25 @@ namespace NotHumanToday.Animated
         private void AddWindStroke()
         {
             if (Root == null) return;
-
+            if (_windStrokes.Count >= WindStrokeTarget) return;
             var stroke = new Path
             {
-                Stroke = new SolidColorBrush(Colors.White) { Opacity = 0.4 },
-                StrokeThickness = 1
+                Stroke = new SolidColorBrush(Colors.White) { Opacity = 0.45 },
+                StrokeThickness = 2,
+                StrokeEndLineCap = PenLineCap.Round,
+                StrokeStartLineCap = PenLineCap.Round
             };
 
             var geometry = new PathGeometry();
             var figure = new PathFigure();
-            figure.StartPoint = new Point(_rnd.Next(0, (int)Root.ActualWidth), _rnd.Next(0, (int)Root.ActualHeight));
+            var startY = _rnd.Next(20, (int)Math.Max(40, Root.ActualHeight - 40));
+            figure.StartPoint = new Point(-80, startY);
             
             var segment = new BezierSegment
             {
-                Point1 = new Point(figure.StartPoint.X + 20, figure.StartPoint.Y + 5),
-                Point2 = new Point(figure.StartPoint.X + 40, figure.StartPoint.Y - 5),
-                Point3 = new Point(figure.StartPoint.X + 60, figure.StartPoint.Y)
+                Point1 = new Point(figure.StartPoint.X + 40, figure.StartPoint.Y + _rnd.NextDouble() * 20 - 10),
+                Point2 = new Point(figure.StartPoint.X + 120, figure.StartPoint.Y + _rnd.NextDouble() * 20 - 10),
+                Point3 = new Point(figure.StartPoint.X + 180, figure.StartPoint.Y + _rnd.NextDouble() * 20 - 10)
             };
 
             figure.Segments.Add(segment);
@@ -251,14 +297,42 @@ namespace NotHumanToday.Animated
             Root.Children.Add(stroke);
             _windStrokes.Add(stroke);
 
-            var anim = new DoubleAnimation(0, TimeSpan.FromSeconds(1));
-            anim.Completed += (s, e) =>
+            Canvas.SetTop(stroke, 0);
+            var translate = new TranslateTransform();
+            stroke.RenderTransform = translate;
+
+            var travel = new DoubleAnimation
+            {
+                From = 0,
+                To = Root.ActualWidth + 200,
+                Duration = TimeSpan.FromSeconds(2.4),
+                EasingFunction = new SineEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            var fadeIn = new DoubleAnimation
+            {
+                From = 0.0,
+                To = 1.0,
+                Duration = TimeSpan.FromSeconds(0.4)
+            };
+
+            var fadeOut = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.0,
+                BeginTime = TimeSpan.FromSeconds(1.8),
+                Duration = TimeSpan.FromSeconds(0.6)
+            };
+
+            fadeIn.Completed += (_, _) => stroke.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+            fadeOut.Completed += (_, _) =>
             {
                 Root.Children.Remove(stroke);
                 _windStrokes.Remove(stroke);
             };
 
-            stroke.BeginAnimation(OpacityProperty, anim);
+            stroke.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            translate.BeginAnimation(TranslateTransform.XProperty, travel);
         }
 
         private TranslateTransform? EnsureGirlTranslate()
@@ -273,6 +347,33 @@ namespace NotHumanToday.Animated
                 transformGroup.Children.Add(translate);
             }
             return translate;
+        }
+        private void BtnPlay_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (_experienceStarted)
+            {
+                return;
+            }
+
+            _experienceStarted = true;
+            if (IntroOverlay != null)
+            {
+                IntroOverlay.Visibility = Visibility.Collapsed;
+            }
+            SetButtonsEnabled(true);
+            if (Caption != null)
+            {
+                Caption.Visibility = Visibility.Visible;
+            }
+            InitClouds();
+            EnterScene(Scene.Cloud, withIntro: true);
+            StartMusic();
+        }
+
+        private void StartMusic()
+        {
+            _musicPlayer.Position = TimeSpan.Zero;
+            _musicPlayer.Play();
         }
 
         private void BtnCloud_OnClick(object sender, RoutedEventArgs e)
@@ -296,27 +397,33 @@ namespace NotHumanToday.Animated
             
             CloudLayer.Children.Clear();
             _clouds.Clear();
+            _cloudMeta.Clear();
 
-            for (int i = 0; i < 6; i++)
+            var speeds = new[] { 0.08, 0.12, 0.18 };
+            foreach (var speed in speeds)
             {
-                var cloud = MakeCloud();
-                _clouds.Add(cloud);
-                CloudLayer.Children.Add(cloud);
-                Canvas.SetLeft(cloud, _rnd.Next(0, (int)Root.ActualWidth));
-                Canvas.SetTop(cloud, _rnd.Next(20, 100));
+                for (int i = 0; i < 4; i++)
+                {
+                    var cloud = MakeCloud(speed);
+                    _clouds.Add(cloud);
+                    _cloudMeta.Add((cloud, speed));
+                    CloudLayer.Children.Add(cloud);
+                    Canvas.SetLeft(cloud, _rnd.Next(0, Math.Max(1, (int)Root.ActualWidth)));
+                    Canvas.SetTop(cloud, _rnd.Next(20, 140));
+                }
             }
 
             CompositionTarget.Rendering -= MoveClouds;
             CompositionTarget.Rendering += MoveClouds;
         }
 
-        private Ellipse MakeCloud()
+        private Ellipse MakeCloud(double speed)
         {
             return new Ellipse
             {
-                Width = _rnd.Next(60, 120),
-                Height = _rnd.Next(30, 60),
-                Fill = new SolidColorBrush(Colors.White) { Opacity = 0.8 }
+                Width = _rnd.Next(60, 120) * (0.8 + speed),
+                Height = _rnd.Next(30, 60) * (0.7 + speed / 2),
+                Fill = new SolidColorBrush(Colors.White) { Opacity = 0.75 }
             };
         }
 
@@ -324,15 +431,15 @@ namespace NotHumanToday.Animated
         {
             if (Root == null || Root.ActualWidth <= 0) return;
 
-            foreach (var cloud in _clouds.ToList())
+            foreach (var (cloud, speed) in _cloudMeta.ToList())
             {
                 if (cloud == null) continue;
                 
                 double x = Canvas.GetLeft(cloud);
-                x -= 0.2;
-                
-                if (x + cloud.ActualWidth < -100)
-                    x = Root.ActualWidth;
+               x -= speed;
+
+                if (x + cloud.ActualWidth < -150)
+                    x = Root.ActualWidth + _rnd.Next(20, 140);
                     
                 Canvas.SetLeft(cloud, x);
             }
@@ -353,22 +460,36 @@ namespace NotHumanToday.Animated
                     SkyToBluePink();
                     StopRain();
                     StopWind();
+                    ApplySceneStyling(Scene.Cloud);
                     break;
                 case Scene.Rain:
                     SkyToRainMuted();
                     StartRain();
                     StopWind();
+                    ApplySceneStyling(Scene.Rain);
                     break;
                 case Scene.Wind:
                     SkyToWindDawn();
                     StopRain();
                     StartWind();
+                    ApplySceneStyling(Scene.Wind);
                     break;
             }
 
-            StartGirlAnimations(withIntro);
+            StartGirlAnimations(target, withIntro);
             ShowCaption(true);
         }
+
+        private static Effect? CloneEffect(Effect? effect)
+        {
+            if (effect is Freezable freezable)
+            {
+                return (Effect)freezable.Clone();
+            }
+
+            return effect;
+        }
+
 
         private void StopAllAnimations()
         {
@@ -378,9 +499,63 @@ namespace NotHumanToday.Animated
             var tt = EnsureGirlTranslate();
             tt?.BeginAnimation(TranslateTransform.YProperty, null);
             GirlScale?.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+            GirlScale?.BeginAnimation(ScaleTransform.ScaleXProperty, null);
         }
 
-        private void StartGirlAnimations(bool withIntro)
+        private void ApplySceneStyling(Scene scene)
+        {
+            if (Girl == null || GirlScale == null) return;
+
+            Girl.Effect = CloneEffect(_originalGirlEffect);
+            GirlScale.ScaleX = 1;
+            GirlScale.ScaleY = 1;
+            Girl.Opacity = 1;
+
+            switch (scene)
+            {
+                case Scene.Cloud:
+                    if (Girl.Effect is DropShadowEffect glow)
+                    {
+                        glow.BlurRadius = 18;
+                        glow.Color = Color.FromRgb(255, 255, 255);
+                        glow.Opacity = 0.75;
+                    }
+                    break;
+                case Scene.Rain:
+                    GirlScale.ScaleX = GirlScale.ScaleY = 0.92;
+                    Girl.Opacity = 0.9;
+                    if (Girl.Effect is DropShadowEffect rainGlow)
+                    {
+                        rainGlow.Color = Color.FromRgb(170, 196, 221);
+                        rainGlow.BlurRadius = 12;
+                        rainGlow.Opacity = 0.55;
+                    }
+                    break;
+                case Scene.Wind:
+                    GirlScale.ScaleX = GirlScale.ScaleY = 0.86;
+                    Girl.Opacity = 0.88;
+                    var blur = new BlurEffect
+                    {
+                        Radius = 2.2,
+                        KernelType = KernelType.Gaussian,
+                        RenderingBias = RenderingBias.Performance
+                    };
+                    if (_originalGirlEffect is DropShadowEffect baseGlow)
+                    {
+                        var group = new EffectGroup();
+                        group.Children.Add((Effect)baseGlow.Clone());
+                        group.Children.Add(blur);
+                        Girl.Effect = group;
+                    }
+                    else
+                    {
+                        Girl.Effect = blur;
+                    }
+                    break;
+            }
+        }
+
+        private void StartGirlAnimations(Scene scene, bool withIntro)
         {
             if (Girl == null) return;
 
@@ -392,6 +567,22 @@ namespace NotHumanToday.Animated
             yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(0, KeyTime.FromTimeSpan(TimeSpan.Zero)));
             yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(-8, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(3))));
             
+            var duration = scene switch
+            {
+                Scene.Cloud => TimeSpan.FromSeconds(4),
+                Scene.Rain => TimeSpan.FromSeconds(6),
+                Scene.Wind => TimeSpan.FromSeconds(3),
+                _ => TimeSpan.FromSeconds(4)
+            };
+            var offset = scene switch
+            {
+                Scene.Cloud => -10,
+                Scene.Rain => -6,
+                Scene.Wind => -14,
+                _ => -8
+            };
+            yAnim.KeyFrames.Add(new EasingDoubleKeyFrame(offset, KeyTime.FromTimeSpan(duration)));
+
             var tt = EnsureGirlTranslate();
             tt?.BeginAnimation(TranslateTransform.YProperty, yAnim);
             
@@ -401,11 +592,13 @@ namespace NotHumanToday.Animated
                 GirlScale.ScaleY = 1.2;
                 Girl.BeginAnimation(OpacityProperty, DA(1, 1.5));
                 GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1, 1.5));
+                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1, 1.5));
             }
             else
             {
-                Girl.BeginAnimation(OpacityProperty, DA(0.95, 0.8));
-                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(1.0, 0.1));
+                Girl.BeginAnimation(OpacityProperty, DA(Girl.Opacity, 0.8));
+                GirlScale.BeginAnimation(ScaleTransform.ScaleYProperty, DA(GirlScale.ScaleY, 0.1));
+                GirlScale.BeginAnimation(ScaleTransform.ScaleXProperty, DA(GirlScale.ScaleX, 0.1));
             }
         }
 
@@ -417,6 +610,8 @@ namespace NotHumanToday.Animated
             StopWind();
             _rainTimer?.Stop();
             _windTimer?.Stop();
+            _musicPlayer.Stop();
+            _musicPlayer.Close();
         }
 
         private void StartRain()
@@ -448,10 +643,10 @@ namespace NotHumanToday.Animated
 
             var drop = new Line
             {
-                Stroke = new SolidColorBrush(Colors.LightBlue) { Opacity = 0.4 },
+                Stroke = new SolidColorBrush(Color.FromRgb(190, 215, 236)) { Opacity = 0.45 },
                 X1 = _rnd.Next(0, (int)Root.ActualWidth),
                 Y1 = -10,
-                StrokeThickness = 1
+                StrokeThickness = 1.2
             };
             drop.X2 = drop.X1 - 3;
             drop.Y2 = drop.Y1 + 10;

@@ -30,14 +30,82 @@
                     Canvas.Right="20" Canvas.Top="20"
                     Padding="4">
                 <StackPanel Orientation="Horizontal">
-                    <Button Content="☁" Click="BtnCloud_OnClick" 
+                    <Button x:Name="BtnCloud" Content="☁" Click="BtnCloud_OnClick" 
                             Margin="2" Padding="8,4" FontSize="20"/>
                     <Button Content="☔" Click="BtnRain_OnClick"
                             Margin="2" Padding="8,4" FontSize="20"/>
-                    <Button Content="🌪" Click="BtnWind_OnClick"
+                    <Button x:Name="BtnWind" Content="🌪" Click="BtnWind_OnClick"
                             Margin="2" Padding="8,4" FontSize="20"/>
                 </StackPanel>
             </Border>
         </Canvas>
+        <Border x:Name="IntroOverlay"
+                Background="#CC0F0F0F"
+                Visibility="Visible">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <ScrollViewer Margin="40" VerticalScrollBarVisibility="Auto">
+                    <StackPanel HorizontalAlignment="Center">
+                        <TextBlock Text="Preview Before You Press Play"
+                                   FontSize="28"
+                                   Foreground="White"
+                                   TextAlignment="Center"
+                                   Margin="0,0,0,24"/>
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="☁ Cloud Scene · Drifting Free"
+                                       FontSize="20"
+                                       Foreground="White"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#FFE6F4FF"
+                                       FontSize="16"
+                                       Text="Soft blue gradients cradle layered clouds that slide across the sky while the girl glows and floats gently in place."/>
+                        </StackPanel>
+                        <StackPanel Margin="0,0,0,16">
+                            <TextBlock Text="🌧 Rain Scene · Quiet Disappearance"
+                                       FontSize="20"
+                                       Foreground="White"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#FFE6F4FF"
+                                       FontSize="16"
+                                       Text="Muted blue rain falls in delicate streaks as the girl slows down and curls inward at the distant edge of the scene."/>
+                        </StackPanel>
+                        <StackPanel>
+                            <TextBlock Text="🌫 Wind Scene · Fragile Freedom"
+                                       FontSize="20"
+                                       Foreground="White"
+                                       Margin="0,0,0,8"/>
+                            <TextBlock TextWrapping="Wrap"
+                                       Foreground="#FFE6F4FF"
+                                       FontSize="16"
+                                       Text="Pink and blue gradients fade together while light wind trails sweep across and the girl blurs slightly into the open space."/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+                <StackPanel Grid.Row="1" Margin="0,0,0,32" HorizontalAlignment="Center">
+                    <Button x:Name="BtnPlay"
+                            Content="Play"
+                            Width="180"
+                            Padding="16,8"
+                            FontSize="22"
+                            Click="BtnPlay_OnClick"/>
+                    <TextBlock Text="Press Play to enter her three weathers."
+                               Foreground="#FFE6F4FF"
+                               FontSize="14"
+                               Margin="0,12,0,0"
+                               TextAlignment="Center"/>
+                </StackPanel>
+                <Button Content="▶ Play" 
+                        Click="BtnPlay_OnClick"
+                        FontSize="24" Padding="20,10"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"/>
+            </Grid>
+
+        </Border>
     </Grid>
 </Window>

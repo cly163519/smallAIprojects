@@ -9,5 +9,6 @@
 
   <ItemGroup>
     <Resource Include="Assets\girl.png" />
+    <Resource Include="Assets\ambient.wav" />
   </ItemGroup>
 </Project>
